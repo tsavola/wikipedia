@@ -5,19 +5,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"net"
 	"os"
 
-	"github.com/tsavola/wikipedia"
 	"import.name/pan"
 
 	. "import.name/pan/mustcheck"
-)
-
-const (
-	filenamePrefix  = "/home/user/Downloads/enwiki-20231001-pages-articles-multistream"
-	indexFilename   = filenamePrefix + "-index.txt.bz2"
-	contentFilename = filenamePrefix + ".xml.bz2"
 )
 
 func main() {
@@ -26,20 +22,33 @@ func main() {
 		os.Exit(2)
 	}
 	article := os.Args[1]
+	if len(article) > 255 {
+		fmt.Fprintf(os.Stderr, "%s: article name is too long\n", os.Args[0])
+		os.Exit(2)
+	}
+
+	var fail bool
 
 	err := pan.Recover(func() {
-		content := Must(os.Open(contentFilename))
-		defer content.Close()
+		conn := Must(net.Dial("tcp", "localhost:11314"))
+		defer conn.Close()
 
-		index := Must(os.Open(indexFilename))
-		defer index.Close()
+		Must(conn.Write(append([]byte{uint8(len(article))}, article...)))
+		buf := Must(io.ReadAll(conn))
 
-		dump := Must(wikipedia.NewMultistreamDump(index, content))
-		text := Must(dump.ReadArticle(article))
-		fmt.Println(text)
+		out := os.Stdout
+		if bytes.HasPrefix(buf, []byte("Error: ")) {
+			out = os.Stderr
+			fail = true
+		}
+		fmt.Fprintf(out, "%s\n", buf)
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	if fail {
 		os.Exit(1)
 	}
 }
