@@ -16,17 +16,15 @@ import (
 	. "import.name/pan/mustcheck"
 )
 
-const (
-	filenamePrefix  = "/home/user/Downloads/enwiki-20231001-pages-articles-multistream"
-	indexFilename   = filenamePrefix + "-index.txt.bz2"
-	contentFilename = filenamePrefix + ".xml.bz2"
-)
-
 func main() {
-	if len(os.Args) != 1 {
-		fmt.Fprintf(os.Stderr, "Usage: %s\n", os.Args[0])
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "Usage: %s filename-prefix\n", os.Args[0])
 		os.Exit(2)
 	}
+	var (
+		indexFilename   = os.Args[1] + "-index.txt.bz2"
+		contentFilename = os.Args[1] + ".xml.bz2"
+	)
 
 	err := pan.Recover(func() {
 		content := Must(os.Open(contentFilename))
